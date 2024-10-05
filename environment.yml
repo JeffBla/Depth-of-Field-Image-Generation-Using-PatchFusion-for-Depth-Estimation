@@ -1,0 +1,27 @@
+name: dof-generation
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - scipy
+  - hydra-core
+  - wandb
+  - dvc
+  - matplotlib
+  - numpy
+  - pandas
+  - scikit-learn
+  - tqdm
+  - jupyter
+  - pip
+  - pip:
+      - dominate
+      - hydra-optuna-sweeper
+      - plotly
+      - opencv-python
+      - albumentations
+      - Pillow
+      - visdom
