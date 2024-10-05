@@ -4,20 +4,19 @@ Depth estimation
 
 [Target Paper](https://zhyever.github.io/patchfusion/)
 
-::: spoiler Prerequirements
-
 ## Prerequirements
 
 ### Theory
 
 [self-attention](https://medium.com/@x02018991/%E6%A9%9F%E5%99%A8%E5%AD%B8%E7%BF%92%E7%AD%86%E8%A8%98-self-attention-fa6897080a0a)
-[self-attention example code](https://github.com/PaulEm6/Attention-is-all-you-need/blob/main/Training%20Scripts/simple_gpt.py)
-[pix2pix](https://github.com/phillipi/pix2pix)
-[Transformer](https://arxiv.org/abs/1706.03762)
-[Swin Transformer](https://arxiv.org/abs/2103.14030)
-:::
 
-::: spoiler Detail
+[self-attention example code](https://github.com/PaulEm6/Attention-is-all-you-need/blob/main/Training%20Scripts/simple_gpt.py)
+
+[pix2pix](https://github.com/phillipi/pix2pix)
+
+[Transformer](https://arxiv.org/abs/1706.03762)
+
+[Swin Transformer](https://arxiv.org/abs/2103.14030)
 
 ## Detail
 
@@ -50,10 +49,6 @@ Depth estimation
 
 Set up automated testing using tools like GitHub Actions or Jenkins.
 Implement automated model evaluation on test sets. -->
-
-:::
-
-:::spoiler Collaboration
 
 ## Collaboration
 
@@ -88,9 +83,7 @@ The server in the Resource department. **Please be very very careful.**
 Collaboratively analyze results and discuss insights.
 Use visualization tools to share and compare model performance across experiments.
 
-:::
-
-:::spoiler File structure
+## File structure
 
 ```plaintext!
 
@@ -141,5 +134,3 @@ dof_generation/
 └── requirements.txt
 
 ```
-
-:::
