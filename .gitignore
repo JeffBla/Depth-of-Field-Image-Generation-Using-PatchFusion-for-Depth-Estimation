@@ -1,8 +1,9 @@
 __pycache__
 
-# pix2pix
+# hydra
+outputs/
 
-.vscode
+# pix2pix
 .DS_Store
 debug*
 datasets/
