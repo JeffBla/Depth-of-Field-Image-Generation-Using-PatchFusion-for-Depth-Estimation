@@ -1,0 +1,45 @@
+dof_generation/
+│
+├── data/
+│ ├── raw/ # Raw data, tracked by DVC
+│ └── processed/ # Processed data, tracked by DVC
+│
+├── src/
+│ ├── data/
+│ │ ├── __init__.py
+│ │ └── datamodule.py # Lightning DataModule
+│ ├── models/
+│ │ ├── __init__.py
+│ │ ├── patchfusion.py # PatchFusion model
+│ │ ├── vae.py # VAE model
+│ │ └── gan.py # GAN model
+│ ├── utils/
+│ │ ├── __init__.py
+│ │ └── metrics.py # Custom metrics
+│ └── dof_model.py # Main Lightning Module
+│
+├── configs/
+│ ├── config.yaml # Base configuration
+│ ├── data/
+│ │ └── default.yaml # Data configuration
+│ ├── model/
+│ │ └── default.yaml # Model configuration
+│ └── train/
+│ └── default.yaml # Training configuration
+│
+├── scripts/
+│ └── train.py # Training script
+│
+├── notebooks/
+│ └── data_exploration.ipynb
+│
+├── tests/
+│ ├── __init__.py
+│ ├── test_data.py
+│ └── test_model.py
+│
+├── .dvcignore
+├── .gitignore
+├── environment.yml # Conda environment file
+├── README.md
+└── requirements.txt
