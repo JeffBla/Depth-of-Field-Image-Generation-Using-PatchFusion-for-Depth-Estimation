@@ -14,9 +14,10 @@ class DoFModel(pl.LightningModule):
         self.save_hyperparameters(hparams)
 
         self.patchfusion = PatchFusion()
-        self.vae = VAE(
-            input_dim=4, hidden_dim=64,
-            latent_dim=256)  # Assuming 3 color channels + 1 depth channel
+        self.vae = VAE(input_dim=hparams.input_dim,
+                       hidden_dim=hparams.hidden_dim,
+                       latent_dim=hparams.latent_dim
+                       )  # Assuming 3 color channels + 1 depth channel
         self.generator = Generator(hparams.generator)
         self.discriminator = Discriminator(hparams.discriminator)
 
