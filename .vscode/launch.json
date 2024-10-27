@@ -21,6 +21,17 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
+    },
+    {
+      "name": "Data Classifier",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/utils/DataClassifier.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
     }
   ]
 }

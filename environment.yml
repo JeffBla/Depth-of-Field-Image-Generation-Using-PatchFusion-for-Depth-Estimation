@@ -417,4 +417,5 @@ dependencies:
       - torchvision==0.19.1
       - triton==3.0.0
       - visdom==0.2.4
+      - dvc-gdrive
 prefix: /opt/conda/envs/dof-generation
