@@ -8,3 +8,10 @@ stages:
     outs:
     - data/proc/blur
     - data/proc/clear
+  depth_gen:
+    cmd: python ./utils/DepthMapGen.py
+    deps:
+    - data/proc/blur
+    - data/proc/clear
+    outs:
+    - data/proc/depth

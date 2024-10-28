@@ -1,15 +1,15 @@
 DepthMapGen:
-  PatchFusion_path: '~/Project/PatchFusion'
-  PatchFusion_target: '~/Project/PatchFusion/tools/test.py'
-  config: '~/Project/PatchFusion/configs/patchfusion_depthanything/depthanything_general.py'
+  PatchFusion_path: '/home/jeff/Project/PatchFusion'
+  PatchFusion_target: '/home/jeff/Project/PatchFusion/tools/test.py'
+  config: '/home/jeff/Project/PatchFusion/configs/patchfusion_depthanything/depthanything_general.py'
   ckp-path: 'Zhyever/patchfusion_depth_anything_vitl14'
   cai-mode: 'r32'
-  cfg-option: "general_dataloader.dataset.rgb_image_dir='data/proc/clear/'" # input path
+  cfg-option: "general_dataloader.dataset.rgb_image_dir='/home/jeff/Project/Depth-of-Field-Image-Generation-Using-PatchFusion-for-Depth-Estimation/data/proc/clear/'" # input path
   save: true
-  work-dir: 'data/proc/depth/' # output path
+  work-dir: '/home/jeff/Project/Depth-of-Field-Image-Generation-Using-PatchFusion-for-Depth-Estimation/data/proc/depth/' # output path
   test-type: 'general' 
-  image-raw-shape: '1024 1024'
-  patch_split_num: '4 4'
+  image-raw-shape: 1024 1024
+  patch-split-num: 4 4
 
 ImgProcess:
   input_path: '/home/jeff/Project/Depth-of-Field-Image-Generation-Using-PatchFusion-for-Depth-Estimation/data/raw'

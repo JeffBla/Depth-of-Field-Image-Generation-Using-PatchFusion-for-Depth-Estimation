@@ -28,3 +28,22 @@ stages:
       md5: 00038c773065c5a4f293e4d1efd898d8.dir
       size: 31032236
       nfiles: 103
+  depth_gen:
+    cmd: python ./utils/DepthMapGen.py
+    deps:
+    - path: data/proc/blur
+      hash: md5
+      md5: 16f0c46b545a236983268c185098eb13.dir
+      size: 19023433
+      nfiles: 103
+    - path: data/proc/clear
+      hash: md5
+      md5: 00038c773065c5a4f293e4d1efd898d8.dir
+      size: 31032236
+      nfiles: 103
+    outs:
+    - path: data/proc/depth
+      hash: md5
+      md5: 124745292f0edf21f7b43eab401d4ab1.dir
+      size: 58188564
+      nfiles: 207

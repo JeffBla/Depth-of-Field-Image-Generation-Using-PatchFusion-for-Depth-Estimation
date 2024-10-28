@@ -32,6 +32,16 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
+    },{
+      "name": "Depth map generator",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/utils/DepthMapGen.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:/home/jeff/Project/PatchFusion:/home/jeff/Project/PatchFusion/external"
+      }
     }
   ]
 }
