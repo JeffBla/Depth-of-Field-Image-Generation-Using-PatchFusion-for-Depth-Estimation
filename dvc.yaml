@@ -1,0 +1,10 @@
+stages:
+  proc_imgs:
+    cmd: python ./utils/ImgProcess.py
+    deps:
+    - ./utils/ImgProcess.py
+    - data/raw/blur
+    - data/raw/clear
+    outs:
+    - data/proc/blur
+    - data/proc/clear

@@ -2,6 +2,7 @@ defaults:
   - data: default
   - model: default
   - train: default
+  - utils: default
 
 seed: 42
 project_name: "dof_generation"

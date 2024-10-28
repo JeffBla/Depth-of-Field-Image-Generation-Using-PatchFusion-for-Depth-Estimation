@@ -1,0 +1,6 @@
+outs:
+- md5: a94d5a3877490cc36eeb789f68815add.dir
+  size: 559266354
+  nfiles: 103
+  hash: md5
+  path: clear

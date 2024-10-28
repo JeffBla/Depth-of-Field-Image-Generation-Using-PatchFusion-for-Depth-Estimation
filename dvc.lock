@@ -1,0 +1,30 @@
+schema: '2.0'
+stages:
+  proc_imgs:
+    cmd: python ./utils/ImgProcess.py
+    deps:
+    - path: ./utils/ImgProcess.py
+      hash: md5
+      md5: 415a57e6a77ba32acd09259a224805d2
+      size: 1594
+    - path: data/raw/blur
+      hash: md5
+      md5: 836666867a9f4e3fa23979446d029f0d.dir
+      size: 372056999
+      nfiles: 103
+    - path: data/raw/clear
+      hash: md5
+      md5: a94d5a3877490cc36eeb789f68815add.dir
+      size: 559266354
+      nfiles: 103
+    outs:
+    - path: data/proc/blur
+      hash: md5
+      md5: 16f0c46b545a236983268c185098eb13.dir
+      size: 19023433
+      nfiles: 103
+    - path: data/proc/clear
+      hash: md5
+      md5: 00038c773065c5a4f293e4d1efd898d8.dir
+      size: 31032236
+      nfiles: 103
