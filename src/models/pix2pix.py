@@ -94,26 +94,34 @@ class CBLR(nn.Module):
         super().__init__()
 
         self.cblr = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, 4, stride, 1),
+            nn.Conv2d(in_ch, out_ch, 4, stride, 1, bias=False),
             nn.BatchNorm2d(out_ch),
-            nn.LeakyReLU(0.2)
+            nn.LeakyReLU(0.2, True)
         )
     
     def forward(self, x):
         return self.cblr(x)
 
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, input_nc=6, ndf=64, n_layers=3):
         super().__init__()
-        self.discriminator = nn.Sequential(
-            CBLR(6, 64, 2), #1024*1024,6ch -> 512*512,64ch
-            CBLR(64, 128, 2), #512*512,64ch -> 256*256,128ch
-            CBLR(128, 256, 2), #256*256,128ch -> 128*128,256ch
-            CBLR(256, 512, 2), #128*128,256ch -> 64*64,512ch
-            CBLR(512, 512, 1), #64*64,512ch -> 63*63,512ch
-            nn.Conv2d(512, 1, 4, 1, 1) #63*63,512ch -> 62*62,1ch
-        )
+        sequence = [nn.Conv2d(input_nc, ndf, kernel_size=4, stride=2, padding=1), nn.LeakyReLU(0.2, True)]
+        
+        nf_mult = 1
+        nf_mult_prev = 1
+        for n in range(1, n_layers):
+            nf_mult_prev = nf_mult
+            nf_mult = min(2 ** n, 8)
+            sequence += [CBLR(ndf * nf_mult_prev, ndf * nf_mult, stride=2)]
 
-    def forward(self, x1, x2):
-        in_x = torch.cat([x1, x2], dim=1)
-        return self.discriminator(in_x)
+        nf_mult_prev = nf_mult
+        nf_mult = min(2 ** n_layers, 8)
+
+        sequence += [CBLR(ndf * nf_mult_prev, ndf * nf_mult, stride=2)]
+
+        sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=4, stride=1, padding=1)]
+        
+        self.model = nn.Sequential(*sequence)
+
+    def forward(self, input):
+        return self.model(input)
