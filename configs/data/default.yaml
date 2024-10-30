@@ -1,0 +1,13 @@
+data_dir
+batch_size
+num_workers
+img_size
+augment
+sync_transforms:
+  rand_file_prob
+  rand_rotation_prob
+  colorJitter:
+    brightness
+    contrast
+    saturation
+    hue
