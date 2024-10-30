@@ -103,7 +103,7 @@ class CBLR(nn.Module):
         return self.cblr(x)
 
 class Discriminator(nn.Module):
-    def __init__(self, input_nc=6, ndf=64, n_layers=3):
+    def __init__(self, input_nc=7, ndf=64, n_layers=3):
         super().__init__()
         sequence = [nn.Conv2d(input_nc, ndf, kernel_size=4, stride=2, padding=1), nn.LeakyReLU(0.2, True)]
         

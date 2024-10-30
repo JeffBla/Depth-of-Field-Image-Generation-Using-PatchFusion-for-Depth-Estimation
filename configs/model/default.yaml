@@ -14,7 +14,7 @@ generator:
   input_dim: 64
   output_dim: 3
 discriminator:
-  input_nc: 6
+  input_nc: 7
   ndf: 64
   n_layers: 3
   

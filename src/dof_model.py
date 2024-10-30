@@ -118,7 +118,7 @@ class DoFD(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         
-        self.discriminator = Discriminator(6, 64, 3)
+        self.discriminator = Discriminator(7, 64, 3)
         self.lr = lr
         self.beta1 = beta1
         self.beta2 = beta2
