@@ -1,0 +1,20 @@
+lambda_l1: 10
+lambda_vq: 1
+lambda_gan: 1
+lambda_commit: 0.25
+beta1: 0.5
+beta2: 0.999
+lr: 0.002
+vqvae:
+  input_dim: 4
+  output_dim: 3
+  codebook_size: 1024
+  codebbok_len: 64
+generator:
+  input_dim: 64
+  output_dim: 3
+discriminator:
+  input_nc: 6
+  ndf: 64
+  n_layers: 3
+  
