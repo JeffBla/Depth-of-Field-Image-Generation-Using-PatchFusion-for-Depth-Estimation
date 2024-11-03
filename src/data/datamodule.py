@@ -1,16 +1,17 @@
 import os
 from typing import Optional, Tuple
-import lightning as pl
+import pytorch_lightning as pl
+from omegaconf import DictConfig
 from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import transforms
 from PIL import Image
 import torch
 import numpy as np
 
-from SyncTransfom import SyncRandomFlip, SyncRandomRotation, SyncColorJitter
+from src.data.SyncTransfom import SyncRandomFlip, SyncRandomRotation, SyncColorJitter
 
 class DofDataset(Dataset):
-    def __init__(self, root_dir: str, transform=None, augment=True):
+    def __init__(self, root_dir: str, transform=None, augment=True, sync_transformsConf: DictConfig = None):
         """
         Args:
             root_dir (str): Path to the proc directory containing blur, clear, and depth folders
@@ -30,16 +31,16 @@ class DofDataset(Dataset):
         # Define synchronized augmentations
         self.augment = augment
         self.sync_transforms = [
-            SyncRandomFlip(p=0.5),
-            SyncRandomRotation(degrees=10),
+            SyncRandomFlip(p=sync_transformsConf.rand_file_prob),
+            SyncRandomRotation(degrees=sync_transformsConf.rand_rotation_degree),
         ]
 
         # Define color augmentation (only for RGB images, not depth)
         self.color_transform = SyncColorJitter(
-            brightness=0.2,
-            contrast=0.2,
-            saturation=0.2,
-            hue=0.1
+            brightness=sync_transformsConf.colorJitter.brightness,
+            contrast=sync_transformsConf.colorJitter.contrast,
+            saturation=sync_transformsConf.colorJitter.saturation,
+            hue=sync_transformsConf.colorJitter.hue
         )
 
         # Define basic transforms
@@ -50,11 +51,12 @@ class DofDataset(Dataset):
 
     def __getitem__(self, idx):
         img_name = self.image_files[idx]
+        depth_img_name = img_name.split('.')[0] + '.png'
         
         # Load images
         blur_path = os.path.join(self.blur_dir, img_name)
         clear_path = os.path.join(self.clear_dir, img_name)
-        depth_path = os.path.join(self.depth_dir, img_name)
+        depth_path = os.path.join(self.depth_dir, depth_img_name)
         
         blur_img = Image.open(blur_path).convert('RGB')
         clear_img = Image.open(clear_path).convert('RGB')
@@ -86,21 +88,21 @@ class DofDataset(Dataset):
     
 class DofDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        data_dir: str = "data/proc",
-        batch_size: int = 8,
-        num_workers: int = 4,
-        img_size: Tuple[int, int] = (1024, 1024),
+        self, seed, cfg: DictConfig,
     ):
         super().__init__()
-        self.data_dir = data_dir
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.img_size = img_size
+        self.seed = seed 
+        self.data_dir = cfg.data_dir
+        self.batch_size = cfg.batch_size
+        self.num_workers = cfg.num_workers
+        self.img_size = cfg.img_size
+        self.augment = cfg.augment
+        self.train_val_split = cfg.train_val_split
+        self.sync_transformsConf = cfg.sync_transforms
         
         # Define transforms
         self.transform = transforms.Compose([
-            transforms.Resize(img_size),
+            transforms.Resize((self.img_size, self.img_size)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5], std=[0.5])  # Normalize to [-1, 1]
         ])
@@ -111,30 +113,33 @@ class DofDataModule(pl.LightningDataModule):
             full_dataset = DofDataset(
                 root_dir=os.path.join(self.data_dir,),
                 transform=self.transform,
-                augment=True
+                augment=self.augment,
+                sync_transformsConf=self.sync_transformsConf
             )
             
             # Calculate lengths for splits
             total_length = len(full_dataset)
-            train_length = int(total_length * self.train_val_split[0])
+            train_length = int(total_length * self.train_val_split)
             val_length = total_length - train_length
             
             # Split dataset
-            self.train_dataset, self.test_dataset = random_split(
+            self.train_dataset, self.val_dataset = random_split(
                 full_dataset, 
                 [train_length, val_length],
-                generator=torch.Generator().manual_seed(42)
+                generator=torch.Generator().manual_seed(self.seed)
             )
-        elif stage == 'test':
-            self.test_dataset = DofDataset(
+        elif stage == 'validate':
+            self.val_dataset = DofDataset(
                 os.path.join(self.data_dir, 'test'),
-                transform=self.transform
+                transform=self.transform,
+                sync_transformsConf=self.sync_transformsConf
             )
             
         elif stage == 'predict':
             self.predict_dataset = DofDataset(
                 os.path.join(self.data_dir, 'test'),
-                transform=self.transform
+                transform=self.transform,
+                sync_transformsConf=self.sync_transformsConf
             )
 
     def train_dataloader(self):
@@ -146,9 +151,9 @@ class DofDataModule(pl.LightningDataModule):
             pin_memory=True
         )
 
-    def test_dataloader(self):
+    def val_dataloader(self):
         return DataLoader(
-            self.test_dataset,
+            self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,

@@ -1,13 +1,14 @@
-data_dir
-batch_size
-num_workers
-img_size
-augment
+data_dir: ${hydra:runtime.cwd}/data/proc/
+batch_size: 8
+num_workers: 4
+img_size: 1024
+augment: True
+train_val_split: 0.8
 sync_transforms:
-  rand_file_prob
-  rand_rotation_prob
+  rand_file_prob: 0.5
+  rand_rotation_degree: 10
   colorJitter:
-    brightness
-    contrast
-    saturation
-    hue
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.2
+    hue: 0.1

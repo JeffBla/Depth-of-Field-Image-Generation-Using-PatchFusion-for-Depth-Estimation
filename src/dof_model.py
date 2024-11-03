@@ -1,41 +1,47 @@
-import lightning as pl
+import pytorch_lightning as pl
+from omegaconf import DictConfig
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from src.models.vqvae import VQVAE
 from src.models.pix2pix import Generator, Discriminator
+import wandb
 
 class DoFG(pl.LightningModule):
-    def __init__(self, in_ch, out_ch, codebook_size, codebook_len, 
-                 lr=2e-4, beta1=0.5, beta2=0.999,
-                 lambda_l1=10.0, lambda_vq=1.0, lambda_gan=1.0, lambda_commit=0.25):
+    def __init__(self, generatorConf: DictConfig):
         super().__init__()
+        self.in_ch = generatorConf.in_channels
+        self.out_ch = generatorConf.out_channels
+        self.codebook_size = generatorConf.vqvae.codebook_size
+        self.codebook_len = generatorConf.vqvae.codebook_len
+        self.lr = generatorConf.lr
+        self.beta1 = generatorConf.beta1
+        self.beta2 = generatorConf.beta2
+        self.lambda_l1 = generatorConf.lambda_l1
+        self.lambda_vq = generatorConf.lambda_vq
+        self.lambda_gan = generatorConf.lambda_gan
+        self.lambda_commit = generatorConf.lambda_commit
+
         self.save_hyperparameters()
         
         # Models
-        self.vqvae = VQVAE(in_ch, out_ch, codebook_size, codebook_len)
-        self.generator = Generator(codebook_len, out_ch)
+        self.vqvae = VQVAE(self.in_ch, self.out_ch , self.codebook_size, self.codebook_len)
+        self.generator = Generator(self.codebook_len, self.out_ch)
         
         # Loss functions
         self.l1_loss = nn.L1Loss()
         self.mse_loss = nn.MSELoss()
-        
-        # Hyperparameters
-        self.lr = lr
-        self.beta1 = beta1
-        self.beta2 = beta2
-        self.lambda_l1 = lambda_l1
-        self.lambda_vq = lambda_vq
-        self.lambda_gan = lambda_gan
-        self.lambda_commit = lambda_commit
 
+        # Loss function
+        self.criterion = nn.MSELoss()
+        
     def forward(self, x):
         z_e = self.vqvae.encoder(x)
         z_e, z_q, decoder_input, perplexity = self.vqvae.vq(z_e)
         generated = self.generator(decoder_input)
         return generated, z_e, z_q, perplexity
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, discriminator):
         '''
         @param batch: A tuple containing the input and target images:
             - real_A: Clean image & Depth image
@@ -52,7 +58,7 @@ class DoFG(pl.LightningModule):
 
         # Adversarial loss
         l1_loss = self.l1_loss(generated, real_B)
-        fake_pred = self.trainer.get_model('discriminator')(real_A, generated)
+        fake_pred = discriminator(torch.cat([real_A, generated], dim=1))
         real_target = torch.ones_like(fake_pred)
         gan_loss = self.criterion(fake_pred, real_target)
         
@@ -62,11 +68,11 @@ class DoFG(pl.LightningModule):
                 self.lambda_gan * gan_loss)
     
         # Log losses
-        self.log('train/l1_loss', l1_loss)
-        self.log('train/vq_loss', vq_loss)
-        self.log('train/commitment_loss', commitment_loss)
-        self.log('train/perplexity', perplexity)
-        self.log('train/total_loss', loss)
+        wandb.log({'train/l1_loss': l1_loss, 
+                    'train/vq_loss': vq_loss,
+                    'train/commitment_loss': commitment_loss,
+                    'train/perplexity': perplexity,
+                    'train/total_g_loss': loss})
         
         return loss
 
@@ -75,34 +81,34 @@ class DoFG(pl.LightningModule):
         generated, _, _, _ = self(real_A)
         return generated
 
-    def test_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx):
         real_A, real_B = batch
         
         # Forward pass and get outputs
         generated, z_e, z_q, perplexity = self(real_A)
         
         # Calculate test metrics
-        test_l1_loss = self.l1_loss(generated, real_B)
-        test_vq_loss = self.mse_loss(z_q, z_e.detach())
-        test_commitment_loss = self.mse_loss(z_q.detach(), z_e)
+        val_l1_loss = self.l1_loss(generated, real_B)
+        val_vq_loss = self.mse_loss(z_q, z_e.detach())
+        val_commitment_loss = self.mse_loss(z_q.detach(), z_e)
         
         # Log test metrics
-        self.log('test/l1_loss', test_l1_loss)
-        self.log('test/vq_loss', test_vq_loss)
-        self.log('test/commitment_loss', test_commitment_loss)
-        self.log('test/perplexity', perplexity)
+        wandb.log({'val/l1_loss': val_l1_loss,
+                    'val/vq_loss': val_vq_loss,
+                    'val/commitment_loss': val_commitment_loss,
+                    'val/perplexity': perplexity})
         
         # Save sample test images
         if batch_idx % 100 == 0:
-            self.logger.experiment.add_images('test/real_A', real_A, self.current_epoch)
-            self.logger.experiment.add_images('test/real_B', real_B, self.current_epoch)
-            self.logger.experiment.add_images('test/generated', generated, self.current_epoch)
-        
+            wandb.log({'val/img': [wandb.Image(real_A, "RGB", "real_A"),
+                                   wandb.Image(real_B, "RGB", "real_B"),
+                                   wandb.Image(generated, "RGB", "generated")]})
+
         return {
-            'test_l1_loss': test_l1_loss,
-            'test_vq_loss': test_vq_loss,
-            'test_commitment_loss': test_commitment_loss,
-            'test_perplexity': perplexity,
+            'val_l1_loss': val_l1_loss,
+            'val_vq_loss': val_vq_loss,
+            'val_commitment_loss': val_commitment_loss,
+            'val_perplexity': perplexity,
             'generated_images': generated
         }
     def configure_optimizers(self):
@@ -114,22 +120,22 @@ class DoFG(pl.LightningModule):
         return optimizer
 
 class DoFD(pl.LightningModule):
-    def __init__(self, lr=2e-4, beta1=0.5, beta2=0.999):
-        super().__init__()
+    def __init__(self, discriminatorConf: DictConfig):
+        super().__init__()        
+        self.discriminator = Discriminator(discriminatorConf.input_nc, discriminatorConf.ndf, discriminatorConf.n_layers)
+        self.lr = discriminatorConf.lr
+        self.beta1 = discriminatorConf.beta1
+        self.beta2 = discriminatorConf.beta2
+        
         self.save_hyperparameters()
-        
-        self.discriminator = Discriminator(7, 64, 3)
-        self.lr = lr
-        self.beta1 = beta1
-        self.beta2 = beta2
-        
+
         # Loss function
         self.criterion = nn.MSELoss()
 
-    def forward(self, x1, x2):
-        return self.discriminator(x1, x2)
+    def forward(self, x):
+        return self.discriminator(x)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, generator):
         '''
         @param batch: A tuple containing the input and target images:
             - real_A: Clean image & Depth image
@@ -138,7 +144,7 @@ class DoFD(pl.LightningModule):
         real_A, real_B = batch
         
         # Get generated image from generator
-        generated = self.trainer.get_model('generator')(real_A)[0]
+        generated = generator(real_A)[0]
 
         # Real loss
         real_pred = self(torch.cat([real_A, real_B], dim=1))
@@ -154,29 +160,28 @@ class DoFD(pl.LightningModule):
         total_loss = (real_loss + fake_loss) * 0.5
         
         # Log losses
-        self.log('train/d_real_loss', real_loss)
-        self.log('train/d_fake_loss', fake_loss)
-        self.log('train/d_total_loss', total_loss)
+        wandb.log({'train/d_real_loss': real_loss,
+                    'train/d_fake_loss': fake_loss, 
+                    'train/d_total_loss': total_loss})
         
         return total_loss
 
-    def test_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, generator):
         real_A, real_B = batch
-        generated = self.trainer.get_model('generator')(real_A)[0]
+        generated = generator(real_A)[0]
         
         # Calculate discriminator scores
         # Real loss
-        real_pred = self(real_A, real_B)
+        real_pred = self(torch.cat([real_A, real_B], dim=1))
         real_label = torch.ones_like(real_pred)
         real_loss = self.criterion(real_pred, real_label)
         
         # Fake loss
-        fake_pred = self(real_A, generated.detach())
+        fake_pred = self(torch.cat([real_A, generated.detach()], dim=1))
         fake_target = torch.zeros_like(fake_pred)
         fake_loss = self.criterion(fake_pred, fake_target)
         
-        self.log('test/real_loss', real_loss)
-        self.log('test/fake_loss', fake_loss)
+        wandb.log({'val/real_loss': real_loss, 'val/fake_loss': fake_loss})
         
         return {
             'real_score': real_loss,
@@ -193,31 +198,47 @@ class DoFD(pl.LightningModule):
 
 # Training setup
 class VQVAEPix2PixSystem(pl.LightningModule):
-    def __init__(self, generator, discriminator):
+    def __init__(self, modelConf: DictConfig):
         super().__init__()
-        self.generator = generator
-        self.discriminator = discriminator
+        self.generator = DoFG(modelConf.generator)
+        self.discriminator = DoFD(modelConf.discriminator)
+        self.automatic_optimization = False  # Disable automatic optimization
 
     def configure_optimizers(self):
         g_opt = self.generator.configure_optimizers()
         d_opt = self.discriminator.configure_optimizers()
         return [g_opt, d_opt]
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        if optimizer_idx == 0:
-            return self.generator.training_step(batch, batch_idx)
-        else:
-            return self.discriminator.training_step(batch, batch_idx)
+    def training_step(self, batch, batch_idx):
+        g_opt, d_opt = self.optimizers()
+        
+        # Train discriminator
+        d_opt.zero_grad()
+        d_loss = self.discriminator.training_step(batch, batch_idx, self.generator)
+        self.manual_backward(d_loss)
+        d_opt.step()
+
+        # Train generator
+        g_opt.zero_grad()
+        g_loss = self.generator.training_step(batch, batch_idx, self.discriminator)
+        self.manual_backward(g_loss)
+        g_opt.step()
+
+        loss_metrics =  {"total_g_loss": g_loss, "total_d_loss": d_loss}
+        # mannual Log losses
+        self._log_dict(loss_metrics, step_type="train")
+
+        return loss_metrics
 
     def predict_step(self, batch, batch_idx):
         return self.generator.predict_step(batch, batch_idx)
 
-    def test_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx):
         # Get generator metrics
-        generator_metrics = self.generator.test_step(batch, batch_idx)
+        generator_metrics = self.generator.validation_step(batch, batch_idx)
         
         # Get discriminator metrics
-        discriminator_metrics = self.discriminator.test_step(batch, batch_idx)
+        discriminator_metrics = self.discriminator.validation_step(batch, batch_idx, self.generator)
         
         # Combine metrics
         metrics = {
@@ -226,3 +247,19 @@ class VQVAEPix2PixSystem(pl.LightningModule):
         }
         
         return metrics
+    
+    def _log_dict(self, metrics, step_type: str = "train"):
+        """Helper method to manually log metrics"""
+        on_step = step_type == "train"
+        on_epoch = True
+        
+        for name, value in metrics.items():
+            if isinstance(value, torch.Tensor):
+                value = value.detach()
+            self.log(
+                f"{name}", 
+                value, 
+                on_step=on_step, 
+                on_epoch=on_epoch, 
+                prog_bar=True
+            )

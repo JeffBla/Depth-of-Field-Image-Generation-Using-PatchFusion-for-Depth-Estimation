@@ -7,19 +7,6 @@ defaults:
 seed: 42
 project_name: "dof_generation"
 run_name: "${now:%Y-%m-%d_%H-%M-%S}"
-checkpoint_dir: "checkpoints/"
-
-data:
-  data_dir: "data/"
-  batch_size: 32
-  num_workers: 4
-  train_val_split: 0.8
-  image_size: 256
-
-train:
-  monitor_metric: "total_g_loss"
-  max_epochs: 100
-  gpus: 1
 
 hydra:
   run:
