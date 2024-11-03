@@ -47,3 +47,17 @@ stages:
       md5: 124745292f0edf21f7b43eab401d4ab1.dir
       size: 58188564
       nfiles: 207
+  split_and_rename_depth_files:
+    cmd: python ./utils/SplitAndRenameDepthFiles.py
+    deps:
+    - path: data/proc/depth
+      hash: md5
+      md5: 90bfef272e1a1f8e4f8b8b26fc690ac5.dir
+      size: 25816065
+      nfiles: 104
+    outs:
+    - path: data/proc/depth_preview
+      hash: md5
+      md5: bf24b60adcec2d47d010f1f42789281e.dir
+      size: 32372499
+      nfiles: 103

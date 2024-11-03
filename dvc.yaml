@@ -15,3 +15,9 @@ stages:
     - data/proc/clear
     outs:
     - data/proc/depth
+  split_and_rename_depth_files:
+    cmd: python ./utils/SplitAndRenameDepthFiles.py
+    deps:
+    - data/proc/depth
+    outs:
+    - 'data/proc/depth_preview'
