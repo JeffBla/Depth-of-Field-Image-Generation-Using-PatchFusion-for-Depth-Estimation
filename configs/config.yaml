@@ -7,6 +7,14 @@ defaults:
 seed: 42
 project_name: "dof_generation"
 run_name: "${now:%Y-%m-%d_%H-%M-%S}"
+isEnhanced: True
+
+model:
+  discriminator:
+    n_layers: 6 
+
+train:
+  max_epochs: 1000
 
 hydra:
   run:

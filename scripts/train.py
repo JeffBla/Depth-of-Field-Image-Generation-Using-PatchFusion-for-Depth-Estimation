@@ -6,6 +6,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from src.data.datamodule import DofDataModule
 from src.dof_model import VQVAEPix2PixSystem as DoFModel
+from src.dof_model_enhance import VQVAEPix2PixSystemEnhanced as DoFModelEnhanced
 
 @hydra.main(config_path="../configs", config_name="config")
 def main(cfg):
@@ -16,7 +17,10 @@ def main(cfg):
     datamodule = DofDataModule(cfg.seed, cfg.data)
 
     # Initialize model
-    model = DoFModel(cfg.model)
+    if cfg.isEnhanced:
+        model = DoFModelEnhanced(cfg.model)
+    else:
+        model = DoFModel(cfg.model)
 
     # Convert config to dict for wandb logging
     config_dict = OmegaConf.to_container(cfg, resolve=True)
