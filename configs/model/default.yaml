@@ -1,6 +1,7 @@
 generator:
   in_channels: 4
   out_channels: 3
+  additional_decode_layer: 0
   lambda_l1: 100
   lambda_vq: 1
   lambda_gan: 1
@@ -9,6 +10,7 @@ generator:
   beta2: 0.999
   lr: 2e-4
   vqvae:
+    additional_encode_layer: 2
     codebook_size: 1024
     codebook_len: 64
 discriminator:
