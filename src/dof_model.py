@@ -3,9 +3,11 @@ from omegaconf import DictConfig
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
+
 from src.models.vqvae import VQVAE
 from src.models.pix2pix import Generator, Discriminator
-import wandb
+from src.utils.loss_logger import log_imgs, log_losses
 
 class DoFG(pl.LightningModule):
     def __init__(self, generatorConf: DictConfig):
@@ -55,14 +57,10 @@ class DoFG(pl.LightningModule):
         generated, z_e, z_q, perplexity = self(real_A)
         
         # VQ-VAE losses
-        vq_loss = self.mse_loss(z_q, z_e.detach())
-        commitment_loss = self.mse_loss(z_q.detach(), z_e)
+        vq_loss, commitment_loss = self.calculate_vqvae_losses(z_e, z_q)
 
         # Adversarial loss
-        l1_loss = self.l1_loss(generated, real_B)
-        fake_pred = discriminator(torch.cat([real_A, generated], dim=1))
-        real_target = torch.ones_like(fake_pred)
-        gan_loss = self.criterion(fake_pred, real_target)
+        l1_loss, gan_loss = self.calculate_adversarial_loss(real_A, generated, real_B, discriminator)
         
         # Calculate total loss
         loss = (self.lambda_l1 * l1_loss + 
@@ -70,11 +68,13 @@ class DoFG(pl.LightningModule):
                 self.lambda_gan * gan_loss)
     
         # Log losses
-        wandb.log({'train/l1_loss': l1_loss, 
-                    'train/vq_loss': vq_loss,
-                    'train/commitment_loss': commitment_loss,
-                    'train/perplexity': perplexity,
-                    'train/total_g_loss': loss})
+        log_losses({
+            'l1_loss': l1_loss, 
+            'vq_loss': vq_loss,
+            'commitment_loss': commitment_loss,
+            'perplexity': perplexity,
+            'total_g_loss': loss
+        }, step_type="train")
         
         return loss
 
@@ -91,20 +91,22 @@ class DoFG(pl.LightningModule):
         
         # Calculate test metrics
         val_l1_loss = self.l1_loss(generated, real_B)
-        val_vq_loss = self.mse_loss(z_q, z_e.detach())
-        val_commitment_loss = self.mse_loss(z_q.detach(), z_e)
+        val_vq_loss, val_commitment_loss = self.calculate_vqvae_losses(z_e, z_q)
         
-        # Log test metrics
-        wandb.log({'val/l1_loss': val_l1_loss,
-                    'val/vq_loss': val_vq_loss,
-                    'val/commitment_loss': val_commitment_loss,
-                    'val/perplexity': perplexity})
+        log_losses({
+            'l1_loss': val_l1_loss,
+            'vq_loss': val_vq_loss,
+            'commitment_loss': val_commitment_loss,
+            'perplexity': perplexity
+        }, step_type="val")
         
-        # Save sample test images
+        # Save sample images
         if batch_idx % 100 == 0:
-            wandb.log({'val/img': [wandb.Image(real_A, "RGB", "real_A"),
-                                   wandb.Image(real_B, "RGB", "real_B"),
-                                   wandb.Image(generated, "RGB", "generated")]})
+            log_imgs({
+                'real_A':real_A,
+                'real_B':real_B,
+                'generated':generated
+            }, step_type='val')
 
         return {
             'val_l1_loss': val_l1_loss,
@@ -113,6 +115,7 @@ class DoFG(pl.LightningModule):
             'val_perplexity': perplexity,
             'generated_images': generated
         }
+    
     def configure_optimizers(self):
         optimizer = optim.Adam(
             list(self.vqvae.parameters()) + list(self.generator.parameters()),
@@ -120,6 +123,40 @@ class DoFG(pl.LightningModule):
             betas=(self.beta1, self.beta2)
         )
         return optimizer
+    
+    def calculate_vqvae_losses(self, z_e: torch.Tensor, z_q: torch.Tensor) -> tuple:
+        """
+        Calculate VQ-VAE losses.
+        
+        Args:
+            z_e (torch.Tensor): Encoder output.
+            z_q (torch.Tensor): Quantized output.
+        
+        Returns:
+            tuple: VQ loss and commitment loss.
+        """
+        vq_loss = self.mse_loss(z_q, z_e.detach())
+        commitment_loss = self.mse_loss(z_q.detach(), z_e)
+        return vq_loss, commitment_loss
+
+    def calculate_adversarial_loss(self, real_A: torch.Tensor, generated: torch.Tensor, real_B: torch.Tensor, discriminator: nn.Module) -> tuple:
+        """
+        Calculate adversarial loss.
+        
+        Args:
+            real_A (torch.Tensor): Input image.
+            generated (torch.Tensor): Generated image.
+            real_B (torch.Tensor): Target image.
+            discriminator (nn.Module): Discriminator model.
+        
+        Returns:
+            tuple: L1 loss and GAN loss.
+        """
+        l1_loss_value = self.l1_loss(generated, real_B)
+        fake_pred = discriminator(torch.cat([real_A, generated], dim=1))
+        real_target = torch.ones_like(fake_pred)
+        gan_loss = self.mse_loss(fake_pred, real_target)
+        return l1_loss_value, gan_loss
 
 class DoFD(pl.LightningModule):
     def __init__(self, discriminatorConf: DictConfig):

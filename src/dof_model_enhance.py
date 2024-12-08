@@ -1,27 +1,26 @@
-import cv2
-import numpy as np
 import torch
+from torchvision.transforms import functional as vis_F
 import wandb
-from concurrent.futures import ThreadPoolExecutor
 
 from src.dof_model import DoFG, VQVAEPix2PixSystem
+from src.utils.loss_logger import log_imgs, log_losses
 
 class DoFGEnhanced(DoFG):
     def __init__(self, generatorConf):
         super().__init__(generatorConf)
 
-    def enhance_pixel(self, image, kernel_size, sigma, enhanced_channel, b, i, j):
-        k_size = int(kernel_size[b, i, j])
+    def enhance_pixel(self, clean_img, kernel_size, sigma, enhanced_channel, b, i, j):
+        k_size = int(kernel_size[b,i, j])
         if k_size % 2 == 0:
             k_size += 1  # Ensure the kernel size is odd
         # Ensure the sigma is non-negative
         sig = abs(sigma[b, i, j])
         half_k = k_size // 2
         # Ensure the indices are within bounds
-        i_min, i_max = max(0, i - half_k), min(image.shape[1], i + half_k + 1)
-        j_min, j_max = max(0, j - half_k), min(image.shape[2], j + half_k + 1)
-        smoothed_pixel = cv2.GaussianBlur(image[b, i_min:i_max, j_min:j_max], (k_size, k_size), sig)
-        return b, i, j, smoothed_pixel[half_k, half_k] + enhanced_channel[b, i, j]
+        i_min, i_max = max(0, i - half_k), min(clean_img.shape[2], i + half_k + 1)
+        j_min, j_max = max(0, j - half_k), min(clean_img.shape[3], j + half_k + 1)
+        smoothed_pixel = vis_F.gaussian_blur(clean_img[b, :, i_min:i_max, j_min:j_max], (k_size, k_size), sig.item())
+        return smoothed_pixel.squeeze() + enhanced_channel[b,:, i, j]
 
     def enhance_image(self, image, generated):
         """
@@ -31,41 +30,20 @@ class DoFGEnhanced(DoFG):
         :param generated: Generated image containing kernel size, sigma, and enhanced channel
         :return: Enhanced image
         """
-        # Convert the image to a numpy array if it's a tensor
-        if isinstance(image, torch.Tensor):
-            image = image.cpu().numpy()
-            # The image is in BCHW format, convert it to BHWC format
-            image = np.transpose(image, (0, 2, 3, 1))
-
-        # Convert the generated image to a numpy array if it's a tensor
-        if isinstance(generated, torch.Tensor):
-            generated = generated.cpu().numpy()
-
         # Extract kernel size, sigma, and enhanced channel from the generated image
         kernel_size = generated[:, 0]
         sigma = generated[:, 1]
         enhanced_channel = generated[:, 2:]
 
         # Create an empty array for the enhanced image
-        enhanced_image = np.zeros_like(image)
+        enhanced_image = torch.zeros_like(image)
 
         # Apply the Gaussian smooth filter to each pixel in parallel
-        with ThreadPoolExecutor() as executor:
-            futures = [
-                executor.submit(self.enhance_pixel, image, kernel_size, sigma, enhanced_channel, b, i, j)
-                for b in range(image.shape[0])
-                for i in range(image.shape[1])
-                for j in range(image.shape[2])
-            ]
-            for future in futures:
-                b, i, j, enhanced_pixel = future.result()
-                enhanced_image[b, i, j] = enhanced_pixel
-
-        # Convert the enhanced image back to a tensor if needed
-        if isinstance(enhanced_image, np.ndarray):
-            # Convert the image back to BCHW format
-            enhanced_image = np.transpose(enhanced_image, (0, 3, 1, 2))
-            enhanced_image = torch.tensor(enhanced_image)
+        for b in range(image.shape[0]):
+            for i in range(image.shape[2]):
+                for j in range(image.shape[3]):
+                    enhanced_pixel = self.enhance_pixel(image, kernel_size, sigma, enhanced_channel, b, i, j)
+                    enhanced_image[b, :, i, j] = enhanced_pixel
 
         return enhanced_image
 
@@ -76,29 +54,27 @@ class DoFGEnhanced(DoFG):
         generated, z_e, z_q, perplexity = self(real_A)
         
         # Enhance the generated image
-        enhanced_generated = self.enhance_image(real_A, generated)
+        enhanced_generated = self.enhance_image(real_A[:-1], generated)
         
-        # VQ-VAE losses
-        vq_loss = self.mse_loss(z_q, z_e.detach())
-        commitment_loss = self.mse_loss(z_q.detach(), z_e)
+     # VQ-VAE losses
+        vq_loss, commitment_loss = self.calculate_vqvae_losses(z_e, z_q)
 
         # Adversarial loss
-        l1_loss = self.l1_loss(enhanced_generated, real_B)
-        fake_pred = discriminator(torch.cat([real_A, enhanced_generated], dim=1))
-        real_target = torch.ones_like(fake_pred)
-        gan_loss = self.criterion(fake_pred, real_target)
-        
+        l1_loss, gan_loss = self.calculate_adversarial_loss(real_A, enhanced_generated, real_B, discriminator)
+           
         # Calculate total loss
         loss = (self.lambda_l1 * l1_loss + 
                 self.lambda_vq * (vq_loss + self.lambda_commit * commitment_loss) +
                 self.lambda_gan * gan_loss)
     
         # Log losses
-        wandb.log({'train/l1_loss': l1_loss, 
-                    'train/vq_loss': vq_loss,
-                    'train/commitment_loss': commitment_loss,
-                    'train/perplexity': perplexity,
-                    'train/total_g_loss': loss})
+        log_losses({
+            'l1_loss': l1_loss, 
+            'vq_loss': vq_loss,
+            'commitment_loss': commitment_loss,
+            'perplexity': perplexity,
+            'total_g_loss': loss
+        }, step_type="train")
         
         return loss
 
@@ -115,24 +91,28 @@ class DoFGEnhanced(DoFG):
         generated, z_e, z_q, perplexity = self(real_A)
         
         # Enhance the generated image
-        enhanced_generated = self.enhance_image(real_A, generated)
+        clean_img = real_A[:,:-1]
+        enhanced_generated = self.enhance_image(clean_img, generated)
         
         # Calculate test metrics
         val_l1_loss = self.l1_loss(enhanced_generated, real_B)
-        val_vq_loss = self.mse_loss(z_q, z_e.detach())
-        val_commitment_loss = self.mse_loss(z_q.detach(), z_e)
+        val_vq_loss, val_commitment_loss = self.calculate_vqvae_losses(z_e, z_q)
+
         
-        # Log test metrics
-        wandb.log({'val/l1_loss': val_l1_loss,
-                    'val/vq_loss': val_vq_loss,
-                    'val/commitment_loss': val_commitment_loss,
-                    'val/perplexity': perplexity})
+        log_losses({
+            'l1_loss': val_l1_loss,
+            'vq_loss': val_vq_loss,
+            'commitment_loss': val_commitment_loss,
+            'perplexity': perplexity
+        }, step_type="val")
         
-        # Save sample test images
+        # Save sample images
         if batch_idx % 100 == 0:
-            wandb.log({'val/img': [wandb.Image(real_A, "RGB", "real_A"),
-                                   wandb.Image(real_B, "RGB", "real_B"),
-                                   wandb.Image(enhanced_generated, "RGB", "generated")]})
+            log_imgs({
+                'real_A':real_A,
+                'real_B':real_B,
+                'generated':enhanced_generated
+            }, step_type='val')
 
         return {
             'val_l1_loss': val_l1_loss,
