@@ -3,18 +3,23 @@ import shutil
 import json
 from pathlib import Path
 
-def move_images_based_on_metadata(raw_folder:Path, blur_folder:Path, clear_folder:Path, metadata):
+def move_images_based_on_metadata(target_folder:Path, raw_folder:Path, blur_folder:Path, clear_folder:Path, metadata):
     # Create directories if they don't exist
     os.makedirs(blur_folder, exist_ok=True)
     os.makedirs(clear_folder, exist_ok=True)
 
+    # Catch the last id number
+    last_id = sorted(os.listdir(blur_folder))[-1]
+    if last_id != None:
+        last_id = int(last_id.split('.')[0])
+
     # Move files based on metadata
     for id, imgs in metadata.items():
         # Create id number with 4 digits
-        id = f"{id:04}"        
+        id = f"{id+last_id+1:04}"        
 
-        clear_source_path = raw_folder / imgs['clear']
-        blur_source_path = raw_folder / imgs['blur']
+        clear_source_path = target_folder / imgs['clear']
+        blur_source_path = target_folder / imgs['blur']
         
         clear_dest_path = clear_folder / (str(id)+'.JPG')
         blur_dest_path = blur_folder / (str(id)+'.JPG')
@@ -27,25 +32,27 @@ def move_images_based_on_metadata(raw_folder:Path, blur_folder:Path, clear_folde
         else:
             print(f"{imgs['clear']} and {imgs['blur']} does not exist in the raw folder.")
 
-def parse_metadata_txt(metadata_file):
+def parse_metadata_txt(metadata_file, isCSV):
     metadata = {}
     with open(metadata_file, 'r') as f:
         lines = f.readlines()
         for id, line in enumerate(lines[1:]):  # Skip the header
-            clear, blur = line.strip().split()
-            metadata[id] = {'clear':f"IMG_{clear}.JPG", 'blur': f"IMG_{blur}.JPG"}
+            if isCSV:
+                blur,clear = line.strip().split(',')
+            else:
+                blur, clear = line.strip().split(' ')
+            metadata[id] = {'clear':f"{clear}.jpg", 'blur': f"{blur}.jpg"}
     return metadata
 
 if __name__ == "__main__":
     raw_folder = Path('./data/raw')
     blur_folder = raw_folder / 'blur'
     clear_folder = raw_folder / 'clear'
-    metadata_file = raw_folder / 'metadata.txt'
-    meatadata_json = raw_folder / 'metadata.json'
-    
-    metadata = parse_metadata_txt(metadata_file)
 
-    move_images_based_on_metadata(raw_folder, blur_folder, clear_folder, metadata)
-    # Save the parsed metadata to a JSON file
-    with open(meatadata_json, 'w') as json_file:
-        json.dump(metadata, json_file, indent=4)
+    target_folder = Path('./JPG_Files')
+    metadata_file = target_folder / 'Classification.csv'
+    isCSV = True
+    
+    metadata = parse_metadata_txt(metadata_file, isCSV)
+
+    move_images_based_on_metadata(target_folder, raw_folder, blur_folder, clear_folder, metadata)

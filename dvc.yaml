@@ -8,13 +8,13 @@ stages:
     outs:
     - data/proc/blur
     - data/proc/clear
-  depth_gen:
-    cmd: python ./utils/DepthMapGen.py
-    deps:
-    - data/proc/blur
-    - data/proc/clear
-    outs:
-    - data/proc/depth
+  # depth_gen:
+  #   cmd: python ./utils/DepthMapGen.py
+  #   deps:
+  #   - data/proc/blur
+  #   - data/proc/clear
+  #   outs:
+  #   - data/proc/depth
   split_and_rename_depth_files:
     cmd: python ./utils/SplitAndRenameDepthFiles.py
     deps:
