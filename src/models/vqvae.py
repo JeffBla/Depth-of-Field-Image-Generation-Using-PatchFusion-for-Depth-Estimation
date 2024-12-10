@@ -3,39 +3,36 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class Encoder(nn.Module):
-    def __init__(self, in_ch, additional_encode_layer, codebook_len):
+    def __init__(self, in_ch, codebook_len):
         super().__init__()
         #1024*1024,4ch -> 512*512,16ch -> 256*256,32ch -> 256*256,64ch
-        encoder = [nn.Conv2d(in_ch, codebook_len//4, 4, 2, 1), nn.ReLU()]
-        for i in range(0, additional_encode_layer//2):
-            encoder += [nn.Conv2d(codebook_len//4, codebook_len//4, 3, 1, 1), nn.ReLU()]
-        if additional_encode_layer%2 == 1:
-            encoder += [nn.Conv2d(codebook_len//4, codebook_len//4, 3, 1, 1), nn.ReLU()]
-            
-        encoder += [nn.Conv2d(codebook_len//4, codebook_len//2, 4, 2, 1), nn.ReLU()]
-        for i in range(0, additional_encode_layer//2):
-            encoder += [nn.Conv2d(codebook_len//2, codebook_len//2, 3, 1, 1), nn.ReLU()]
-        encoder += [nn.Conv2d(codebook_len//2, codebook_len, 3, 1, 1)]
-        
-        self.encoder = nn.Sequential(*encoder)
+        self.encoder = nn.Sequential(
+            nn.Conv2d(in_ch, codebook_len//4, 4, 2, 1),
+            nn.ReLU(),
+            nn.Conv2d(codebook_len//4, codebook_len//2, 4, 2, 1),
+            nn.ReLU()
+        )
+        self.pre_vq = nn.Conv2d(codebook_len//2, codebook_len, 3, 1, 1)
     
     def forward(self, inputs):
         x = self.encoder(inputs)
+        x = self.pre_vq(x)
         return x
 
 class Decoder(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
         #256*256,64ch -> 512*512,32ch -> 1024*1024,16ch -> 1024*1024,3ch
+        self.post_vq = nn.ConvTranspose2d(in_ch, in_ch//2, 4, 2, 1)
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(in_ch, in_ch//2, 4, 2, 1),
             nn.ConvTranspose2d(in_ch//2, in_ch//4, 4, 2, 1),
             nn.ReLU(),
             nn.ConvTranspose2d(in_ch//4, out_ch, 3, 1, 1)
         )
         
     def forward(self, inputs):
-        x = self.decoder(inputs)
+        x = self.post_vq(inputs)
+        x = self.decoder(x)
         return x
 
 class VectorQuantizer(nn.Module):
@@ -64,9 +61,9 @@ class VectorQuantizer(nn.Module):
         return z_q, perplexity
 
 class VQVAE(nn.Module):
-    def __init__(self, in_ch, out_ch, codebook_size, codebook_len, additional_encode_layer):
+    def __init__(self, in_ch, out_ch, codebook_size, codebook_len):
         super().__init__()
-        self.encoder = Encoder(in_ch, additional_encode_layer, codebook_len)
+        self.encoder = Encoder(in_ch, codebook_len)
         self.vector_quantizer = VectorQuantizer(codebook_size, codebook_len)
         self.decoder = Decoder(codebook_len, out_ch)
         

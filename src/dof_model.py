@@ -14,8 +14,6 @@ class DoFG(pl.LightningModule):
         super().__init__()
         self.in_ch = generatorConf.in_channels
         self.out_ch = generatorConf.out_channels
-        self.additional_decode_layer = generatorConf.additional_decode_layer
-        self.additional_encode_layer = generatorConf.vqvae.additional_encode_layer
         self.codebook_size = generatorConf.vqvae.codebook_size
         self.codebook_len = generatorConf.vqvae.codebook_len
         self.lr = generatorConf.lr
@@ -29,9 +27,9 @@ class DoFG(pl.LightningModule):
         self.save_hyperparameters()
         
         # Models
-        self.vqvae = VQVAE(self.in_ch, self.out_ch , self.codebook_size, self.codebook_len, self.additional_encode_layer)
-        self.generator = Generator(self.codebook_len, self.out_ch, self.additional_decode_layer)
-        
+        self.vqvae = VQVAE(self.in_ch, self.out_ch , self.codebook_size, self.codebook_len)
+        self.generator = Generator(self.codebook_len, self.out_ch)
+
         # Loss functions
         self.l1_loss = nn.L1Loss()
         self.mse_loss = nn.MSELoss()

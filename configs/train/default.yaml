@@ -2,3 +2,6 @@ monitor_metric: "total_g_loss"
 max_epochs: 500
 save_top_k: 3
 checkpoint_dir: "checkpoints/"
+checkpoint: "/home/jeff/Project/Depth-of-Field-Image-Generation-Using-PatchFusion-for-Depth-Estimation/outputs/2024-12-08/17-27-23/checkpoints/epoch=809-total_g_loss=3.25.ckpt"
+isEnhanced: True
+isCheckpoint: True

@@ -10,6 +10,7 @@ from src.dof_model_enhance import VQVAEPix2PixSystemEnhanced as DoFModelEnhanced
 
 @hydra.main(config_path="../configs", config_name="config")
 def main(cfg):
+    trainConf = cfg.train or {}
 
     pl.seed_everything(cfg.seed)
 
@@ -17,8 +18,11 @@ def main(cfg):
     datamodule = DofDataModule(cfg.seed, cfg.data)
 
     # Initialize model
-    if cfg.isEnhanced:
-        model = DoFModelEnhanced(cfg.model)
+    if trainConf.isEnhanced:
+        if trainConf.isCheckpoint:
+            model = DoFModelEnhanced.load_from_checkpoint(trainConf.checkpoint, modelConf=cfg.model, strict=False)
+        else:
+            model = DoFModelEnhanced(cfg.model)
     else:
         model = DoFModel(cfg.model)
 
@@ -32,7 +36,6 @@ def main(cfg):
         config=config_dict,  # Log all hyperparameters
     )
 
-    trainConf = cfg.train or {}
     # Initialize ModelCheckpoint callback
     checkpoint_filename = '{epoch}-{' + trainConf.monitor_metric + ':.2f}'
     checkpoint_callback = ModelCheckpoint(dirpath=trainConf.checkpoint_dir,

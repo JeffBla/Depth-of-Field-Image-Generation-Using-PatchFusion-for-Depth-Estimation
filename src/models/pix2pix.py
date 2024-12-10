@@ -14,26 +14,23 @@ class downsample(nn.Module):
     def forward(self, x):
         return self.down(x)
 
-class upsample_with_additional_layer(nn.Module):
-    def __init__(self, in_ch: int, out_ch: int, additional_layer: int, drop_out=False):
+class upsample(nn.Module):
+    def __init__(self, in_ch: int, out_ch: int, drop_out=False):
         super().__init__()
-        up = [nn.ReLU(True), nn.ConvTranspose2d(in_ch, out_ch, 4, 2, 1), nn.BatchNorm2d(out_ch)]
-        up += [nn.Dropout(0.5) if drop_out else nn.Identity()]
-        for i in range(0, additional_layer):
-            up += [nn.ReLU(True), nn.Conv2d(out_ch, out_ch, 3, 1, 1), nn.BatchNorm2d(out_ch)]
-        self.up = nn.Sequential(*up)
+        self.up = nn.Sequential(
+            nn.ReLU(True),
+            nn.ConvTranspose2d(in_ch, out_ch, 4, 2, 1),
+            nn.BatchNorm2d(out_ch),
+            nn.Dropout(0.5) if drop_out else nn.Identity()
+        )
 
     def forward(self, x):
         return self.up(x)
-
+    
 class Generator(nn.Module):
-    def __init__(self, in_ch, out_ch, additional_decode_layer):
+    def __init__(self, in_ch, out_ch):
         super().__init__()
 
-        additional_layer = [0, 0, 0, 0]
-        for i in range(0, 4):
-            additional_layer[i] = additional_decode_layer // 4 + (1 if additional_decode_layer % 4 > i else 0)
-        
         self.down_1 = nn.Conv2d(in_ch, 64, 4, 2, 1) #256*256,ch64 -> 128*128,64ch 
         self.down_2 = downsample(64, 128) #128*128,64ch -> 64*64,128ch
         self.down_3 = downsample(128, 256) #64*64,128ch -> 32*32,256ch
@@ -43,17 +40,17 @@ class Generator(nn.Module):
         self.down_7 = downsample(512, 512) #4*4,512ch -> 2*2,512ch
         self.down_8 = downsample(512, 512, False) #2*2,512ch -> 1*1,512ch
         
-        self.up_1 = upsample_with_additional_layer(512, 512, 0) #1*1,512ch -> 2*2,512ch
-        self.up_2 = upsample_with_additional_layer(1024, 512, 0, True) #2*2,1024ch -> 4*4,512ch
-        self.up_3 = upsample_with_additional_layer(1024, 512, 0, True) #4*4,1024ch -> 8*8,512ch
-        self.up_4 = upsample_with_additional_layer(1024, 512, additional_layer[0]) #8*8,1024ch -> 16*16,512ch
-        self.up_5 = upsample_with_additional_layer(1024, 256, additional_layer[1]) #16*16,1024ch -> 32*32,256ch
-        self.up_6 = upsample_with_additional_layer(512, 128, additional_layer[2]) #32*32,512ch -> 64*64,128ch
-        self.up_7 = upsample_with_additional_layer(256, 64, additional_layer[3]) #64*64,256ch -> 128*128,64ch
+        self.up_1 = upsample(512, 512) #1*1,512ch -> 2*2,512ch
+        self.up_2 = upsample(1024, 512, True) #2*2,1024ch -> 4*4,512ch
+        self.up_3 = upsample(1024, 512, True) #4*4,1024ch -> 8*8,512ch
+        self.up_4 = upsample(1024, 512) #8*8,1024ch -> 16*16,512ch
+        self.up_5 = upsample(1024, 256) #16*16,1024ch -> 32*32,256ch
+        self.up_6 = upsample(512, 128) #32*32,512ch -> 64*64,128ch
+        self.up_7 = upsample(256, 64) #64*64,256ch -> 128*128,64ch
 
         self.last_Conv = nn.Sequential(
-            upsample_with_additional_layer(128, 64, 0), #128*128,128ch -> 256*256,64ch
-            upsample_with_additional_layer(64, 32, 0), #256*256,64ch -> 512*512,32ch
+            upsample(128, 64), #128*128,128ch -> 256*256,64ch
+            upsample(64, 32), #256*256,64ch -> 512*512,32ch
             nn.ConvTranspose2d(32, out_ch, 4, 2, 1), #512*512,32ch -> 1024*1024,3ch
             nn.Tanh()
         )
