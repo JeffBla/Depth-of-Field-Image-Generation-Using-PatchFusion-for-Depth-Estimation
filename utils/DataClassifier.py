@@ -9,9 +9,13 @@ def move_images_based_on_metadata(target_folder:Path, raw_folder:Path, blur_fold
     os.makedirs(clear_folder, exist_ok=True)
 
     # Catch the last id number
-    last_id = sorted(os.listdir(blur_folder))[-1]
-    if last_id != None:
-        last_id = int(last_id.split('.')[0])
+    try:
+        last_id = sorted(os.listdir(blur_folder))[-1]
+        if last_id != None:
+            last_id = int(last_id.split('.')[0])
+    except:
+        last_id = -1
+        print("There is no picture in the blur folder before.")
 
     # Move files based on metadata
     for id, imgs in metadata.items():
@@ -41,16 +45,16 @@ def parse_metadata_txt(metadata_file, isCSV):
                 blur,clear = line.strip().split(',')
             else:
                 blur, clear = line.strip().split(' ')
-            metadata[id] = {'clear':f"{clear}.jpg", 'blur': f"{blur}.jpg"}
+            metadata[id] = {'clear':f"IMG_{int(clear):04}.JPG", 'blur': f"IMG_{int(blur):04}.JPG"}
     return metadata
 
 if __name__ == "__main__":
-    raw_folder = Path('./data/raw')
-    blur_folder = raw_folder / 'blur'
+    raw_folder = Path('./data/test')
+    blur_folder = raw_folder / 'truth'
     clear_folder = raw_folder / 'clear'
 
-    target_folder = Path('./JPG_Files')
-    metadata_file = target_folder / 'Classification.csv'
+    target_folder = Path('./data/test/raw')
+    metadata_file = target_folder / 'Classification_test.csv'
     isCSV = True
     
     metadata = parse_metadata_txt(metadata_file, isCSV)

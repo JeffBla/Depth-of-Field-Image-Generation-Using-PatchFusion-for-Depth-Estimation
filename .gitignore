@@ -8,7 +8,7 @@ outputs/
 debug*
 datasets/
 checkpoints/
-checkpoints2/
+checkpoints_2/
 results/
 build/
 dist/

@@ -137,7 +137,7 @@ class DofDataModule(pl.LightningDataModule):
             
         elif stage == 'predict':
             self.predict_dataset = DofDataset(
-                os.path.join(self.data_dir, 'test'),
+                os.path.join(self.data_dir),
                 transform=self.transform,
                 sync_transformsConf=self.sync_transformsConf
             )

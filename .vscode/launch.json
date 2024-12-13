@@ -21,6 +21,17 @@
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       }
+    }, 
+    {
+      "name": "Predicting whole model",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/predict.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
     },
     {
       "name": "Data Classifier",

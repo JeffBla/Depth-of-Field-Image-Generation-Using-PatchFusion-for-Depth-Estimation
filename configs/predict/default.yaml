@@ -1,0 +1,6 @@
+defaults:
+  - data  
+
+checkpoint: "/home/jeff/Project/Depth-of-Field-Image-Generation-Using-PatchFusion-for-Depth-Estimation/checkpoints_2/epoch=382-total_g_loss=4.15.ckpt"
+isEnhanced: True
+output_dir: "${hydra:runtime.cwd}/data/report/generated"
