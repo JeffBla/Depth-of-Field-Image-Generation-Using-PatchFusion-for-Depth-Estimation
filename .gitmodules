@@ -1,0 +1,3 @@
+[submodule "extern/patchfusion"]
+	path = extern/patchfusion
+	url = https://github.com/zhyever/PatchFusion.git
