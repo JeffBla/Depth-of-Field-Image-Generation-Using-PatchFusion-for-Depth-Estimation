@@ -134,3 +134,7 @@ dof_generation/
 └── requirements.txt
 
 ```
+
+## Final Result
+
+[slideshare - ppt](https://www.slideshare.net/slideshow/final-report-depth-of-field-image-generation-using-patchfusion-for-depth-estimation/278818325)
